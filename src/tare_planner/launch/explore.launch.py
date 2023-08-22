@@ -15,6 +15,7 @@ def launch_tare_node(context, scenario):
         name='tare_planner_node',
         output='screen',
         # namespace='sensor_coverage_planner',
+        # prefix=['xterm -e valgrind --tool=callgrind'],
         parameters=[get_package_share_directory('tare_planner')+'/' + scenario_str + '.yaml'])
     return [tare_planner_node]
 
@@ -42,7 +43,7 @@ def generate_launch_description():
         executable='rviz2',
         name='tare_planner_ground_rviz',
         arguments=[
-            '-d', get_package_share_directory('tare_planner')+'/tare_planner_ground.rviz'],
+            '-d', '/home/alex-beh/exploration_planner.rviz'],
         condition=IfCondition(LaunchConfiguration('rviz')))
 
     return LaunchDescription([
