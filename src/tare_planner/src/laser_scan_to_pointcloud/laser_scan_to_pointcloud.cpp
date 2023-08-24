@@ -26,31 +26,38 @@ public:
   //           RMW_QOS_LIVELINESS_LEASE_DURATION_DEFAULT,
   //           false};
     auto qos_profile = rclcpp::QoS(rclcpp::KeepLast(10)).best_effort().durability_volatile();
-    scan_subscription_ = this->create_subscription<sensor_msgs::msg::LaserScan>("/scan_1", qos_profile, std::bind(&LaserScanSubscriber::scan_callback, this, _1));
-    stacked_pc_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("pcl_from_laserscan", 1);
+    scan_subscription_ = this->create_subscription<sensor_msgs::msg::LaserScan>("/scan", qos_profile, std::bind(&LaserScanSubscriber::scan_callback, this, _1));
+    stacked_pc_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/registered_scan", 1);
   }
 
 private:
   void scan_callback(const sensor_msgs::msg::LaserScan::SharedPtr scan_msg) const
   {
-    pcl::PointCloud<pcl::PointXYZ>::Ptr stacked_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZI>::Ptr stacked_cloud(new pcl::PointCloud<pcl::PointXYZI>);
         
     // Populate the stacked point cloud
     for (int layer = 0; layer < 16; ++layer)
     {
         for (size_t i = 0; i < scan_msg->ranges.size(); ++i)
         {
-            pcl::PointXYZ point;
-            double angle = scan_msg->angle_min + scan_msg->angle_increment * i;
-            // TODO: cache the cos/sin values
-            point.x = scan_msg->ranges[i] * cos(angle);
-            point.y = scan_msg->ranges[i] * sin(angle);
-            point.z = layer * 0.05;  // Adjust the z-offset as needed
-            stacked_cloud->points.push_back(point);
-        }
+
+          if(scan_msg->ranges[i]<scan_msg->range_min || 
+              scan_msg->ranges[i]>scan_msg->range_max){
+            continue;
+          }
+
+          pcl::_PointXYZI point;
+          double angle = scan_msg->angle_min + scan_msg->angle_increment * i;
+          // TODO: cache the cos/sin values
+          point.x = scan_msg->ranges[i] * cos(angle);
+          point.y = scan_msg->ranges[i] * sin(angle);
+          point.z = -0.5 + layer * 0.05;  // Adjust the z-offset as needed
+          point.intensity = 1.0;
+          stacked_cloud->points.push_back(point);
+       }
     }
     
-    stacked_cloud->width = scan_msg->ranges.size();  // Width remains the same
+    stacked_cloud->width = stacked_cloud->points.size()/16;  // Width remains the same
     stacked_cloud->height = 16;  // Height is set to the number of layers
 
     // Convert to ROS PointCloud2 message
