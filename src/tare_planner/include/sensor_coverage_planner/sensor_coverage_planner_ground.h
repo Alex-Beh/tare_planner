@@ -297,6 +297,9 @@ private:
 
   rclcpp::TimerBase::SharedPtr execution_timer_;
 
+  rclcpp::CallbackGroup::SharedPtr cloud_cb_group_;
+  rclcpp::CallbackGroup::SharedPtr timer_cb_group_;
+
   // ROS subscribers
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr exploration_start_sub_;
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr registered_scan_sub_;

@@ -336,7 +336,13 @@ bool SensorCoveragePlanner3D::initialize()
 
   lidar_model_ns::LiDARModel::setCloudDWZResol(planning_env_->GetPlannerCloudResolution());
 
-  execution_timer_ = this->create_wall_timer(1000ms, std::bind(&SensorCoveragePlanner3D::execute, this));
+  cloud_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  rclcpp::SubscriptionOptions options;
+  options.callback_group = cloud_cb_group_;
+
+  timer_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+
+  execution_timer_ = this->create_wall_timer(1000ms, std::bind(&SensorCoveragePlanner3D::execute, this),timer_cb_group_);
 
   exploration_start_sub_ = this->create_subscription<std_msgs::msg::Bool>(
       sub_start_exploration_topic_, 5,
@@ -444,6 +450,7 @@ void SensorCoveragePlanner3D::RegisteredScanCallback(
   planning_env_->UpdateRegisteredCloud<pcl::PointXYZI>(registered_cloud_->cloud_);
 
   registered_cloud_count_ = (registered_cloud_count_ + 1) % 5;
+  RCLCPP_INFO(this->get_logger(), "registered_cloud_count_: %d", registered_cloud_count_);
   if (registered_cloud_count_ == 0)
   {
     // initialized_ = true;
@@ -1396,6 +1403,7 @@ void SensorCoveragePlanner3D::execute()
     RCLCPP_INFO(this->get_logger(), "Waiting for start signal");
     return;
   }
+  RCLCPP_INFO(this->get_logger(), "Starting exploration");
   Timer overall_processing_timer("overall processing");
   update_representation_runtime_ = 0;
   local_viewpoint_sampling_runtime_ = 0;
@@ -1423,6 +1431,7 @@ void SensorCoveragePlanner3D::execute()
     misc_utils_ns::Timer update_representation_timer("update representation");
     update_representation_timer.Start();
 
+    RCLCPP_INFO(this->get_logger(), "Updating UpdateGlobalRepresentation");
     // Update grid world
     UpdateGlobalRepresentation();
 
@@ -1433,6 +1442,7 @@ void SensorCoveragePlanner3D::execute()
       return;
     }
 
+    RCLCPP_INFO(this->get_logger(), "UpdateKeyposeGraph");
     UpdateKeyposeGraph();
 
     int uncovered_point_num = 0;
